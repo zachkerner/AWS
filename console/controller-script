@@ -1,0 +1,49 @@
+
+
+
+
+
+#!/bin/bash
+
+# Redirect stdout and stderr to a log file for debugging
+exec > /var/log/user-data.log 2>&1
+
+# Update the package list
+apt-get update -y
+
+# Install AWS CLI using pip (this installs the latest version of AWS CLI version 2)
+apt-get install -y unzip python3-pip
+pip3 install awscli
+
+# Confirm AWS CLI installation
+aws --version
+
+# Wait for the network to be up before attempting to associate the Elastic IP
+while ! timeout 0.2 ping -c 1 -n google.com &> /dev/null
+do
+    printf '.'
+    sleep 1
+done
+
+# Your AWS Region
+REGION="us-east-1"
+
+# The Allocation ID of your Elastic IP (e.g., eipalloc-0123456789abcdef0)
+EIP_ALLOCATION_ID="eipalloc-0a958d05c143640da"
+
+# Fetch the instance ID from metadata service
+INSTANCE_ID=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id)
+
+# Associate the Elastic IP with the EC2 instance
+aws ec2 associate-address --region $REGION --instance-id $INSTANCE_ID --allocation-id $EIP_ALLOCATION_ID
+
+# Check if the association was successful
+if [ $? -eq 0 ]; then
+    echo "Elastic IP association successful."
+else
+    echo "Elastic IP association failed."
+fi
+
+
+#aws ec2 associate-address --instance-id  i-032097e22baefe77e  
+#--allocation-id eipalloc-0a958d05c143640da --region us-east-1

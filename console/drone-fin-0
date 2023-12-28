@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Ensure the script is run with root privileges
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root"
+  exit
+fi
+
+# Update the instance's package references
+apt-get update -y
+
+# Change directory to where your docker-compose.yml file is located
+cd /home/ubuntu/environment/drone-config/compose
+
+# Pull the latest images specified in your docker-compose.yml file
+docker compose pull
+
+# Start up your Docker containers in detached mode
+docker compose up -d
+

@@ -1,0 +1,105 @@
+#working
+
+#!/bin/bash
+
+# Ensure the script is run with root privileges
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root"
+  exit
+fi
+
+# Update the instance's package references
+apt-get update -y
+
+# Backup the current resolv.conf
+cp /etc/resolv.conf /etc/resolv.conf.backup
+
+# Manually set a nameserver for DNS resolution
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
+# Stop and disable systemd-resolved
+systemctl stop systemd-resolved
+systemctl disable systemd-resolved
+
+# Change directory to where your docker-compose.yml file is located
+cd /home/ubuntu/environment/controller-config/compose
+
+# Pull the latest images specified in your docker-compose.yml file
+docker compose pull
+
+# Start up your Docker containers in detached mode
+docker compose up -d
+
+sleep 300
+
+# Implement a wait loop. Adjust the service name and condition as necessary.
+# This example uses a generic condition; you should replace it with a specific check for your NATS service.
+SERVICE_READY=0
+RETRY_COUNT=0
+MAX_RETRIES=10
+while [ $SERVICE_READY -eq 0 ] && [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  # Check if a specific Docker service is ready. Replace `your_service_name` with your actual service name.
+  # The grep command should look for a log line or status that indicates readiness.
+  if docker compose logs nats 2>&1 | grep -q 'Server is ready'; then
+    SERVICE_READY=1
+    echo "inside if block" >> /var/log/docker-loop.log
+  else
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    echo "Waiting for Docker service to be ready... Attempt $RETRY_COUNT/$MAX_RETRIES"
+    echo "inside if block" >> /var/log/docker-loop.log
+    sleep 10  # Wait for 10 seconds before retrying. Adjust as needed.
+  fi
+done
+
+
+#extra check
+# while ! nc -z localhost 4222; do   
+#   echo "Waiting for NATS server to be ready..." << /var/log/extra-check.log
+#   sleep 1
+# done
+# echo "NATS server is ready."
+
+# Now, change directory to where your Node.js app is located
+cd /home/ubuntu/environment/our-api
+
+# Install Node.js using NodeSource's setup script for the latest version
+curl -sL https://deb.nodesource.com/setup_current.x | bash -
+apt-get install -y nodejs
+
+# Install PM2 globally
+npm install pm2 -g
+
+# Install your application's dependencies
+npm install
+
+# If the service is ready, start the Node.js application
+echo "Starting Node.js application..."
+
+pm2 start api.js --name "our-api"
+
+# Capture the output of the pm2 startup command
+PM2_STARTUP_CMD=$(pm2 startup systemd -u ubuntu --hp /home/ubuntu | grep 'sudo' | sed 's/\\//g')
+echo "Executing PM2 startup command: $PM2_STARTUP_CMD"
+eval $PM2_STARTUP_CMD
+
+# Save the PM2 process list and startup configuration
+pm2 save
+
+# Check PM2 logs for debugging
+pm2 logs our-api --lines 100 > /var/log/pm2-our-api.log
+
+
+
+# if docker compose logs nats | grep -q 'Service Ready Message'; then
+#     echo 'your mom'
+#   else
+#     echo 'your dad'
+# fi
+
+#   if docker compose logs nats 2>&1 | grep -q 'Server is ready'; then
+#     echo 'your mom'
+#   else
+#     echo 'your dad'
+#   fi
+
+#working? logs2 & 3

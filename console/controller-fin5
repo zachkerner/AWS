@@ -1,0 +1,94 @@
+
+
+#!/bin/bash
+
+# Ensure the script is run with root privileges
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root"
+  exit
+fi
+
+# Update the instance's package references
+apt-get update -y
+
+# Backup the current resolv.conf
+cp /etc/resolv.conf /etc/resolv.conf.backup
+
+# Manually set a nameserver for DNS resolution
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
+# Stop and disable systemd-resolved
+cd /home/ubuntu/environment/our-api
+
+echo 'pre node install' >> /var/log/events.log
+
+
+# Install Node.js using NodeSource's setup script for the latest version
+curl -sL https://deb.nodesource.com/setup_current.x | bash -
+apt-get install -y nodejs
+
+echo 'post node install' >> /var/log/events.log
+
+# Install PM2 globally
+npm install pm2 -g
+
+# Install your application's dependencies
+npm install
+
+echo "post npm install" >> /var/log/events.log
+
+# Change directory to where your docker-compose.yml file is located
+cd /home/ubuntu/environment/controller-config/compose
+
+# Pull the latest images specified in your docker-compose.yml file
+docker compose pull
+
+echo "post pull" >> /var/log/events.log
+
+systemctl stop systemd-resolved
+systemctl disable systemd-resolved
+
+echo "post systemd" >> /var/log/events.log
+
+# Start up your Docker containers in detached mode
+docker compose up -d
+
+echo "post docker compose" >> /var/log/events.log
+
+SERVICE_READY=0
+RETRY_COUNT=0
+MAX_RETRIES=10
+while [ $SERVICE_READY -eq 0 ] && [ $RETRY_COUNT -lt $MAX_RETRIES ]; do.
+  if docker compose logs nats 2>&1 | grep -q 'Server is ready'; then
+    SERVICE_READY=1
+    echo "inside if block" >> /var/log/docker-loop.log
+  else
+    RETRY_COUNT=$((RETRY_COUNT+1))
+    echo "Waiting for Docker service to be ready... Attempt $RETRY_COUNT/$MAX_RETRIES"
+    echo "inside if block" >> /var/log/docker-loop.log
+    sleep 10 
+  fi
+done
+echo "post loop" >> /var/log/events.log
+
+echo "Starting Node.js application..."
+
+cd /home/ubuntu/environment/our-api
+
+pm2 start api.js --name "our-api"
+
+echo "didn't reach" > /var/log/afterpm2.log
+
+# Capture the output of the pm2 startup command
+PM2_STARTUP_CMD=$(pm2 startup systemd -u ubuntu --hp /home/ubuntu | grep 'sudo' | sed 's/\\//g')
+echo "Executing PM2 startup command: $PM2_STARTUP_CMD"
+eval $PM2_STARTUP_CMD
+
+# Save the PM2 process list and startup configuration
+pm2 save
+
+# Check PM2 logs for debugging
+
+
+
+pm2 logs our-api --lines 100 > /var/log/pm2-our-api.log

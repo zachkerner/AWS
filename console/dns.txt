@@ -1,0 +1,36 @@
+
+; <<>> DiG 9.10.6 <<>> ns themames.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58410
+;; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 5
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 512
+;; QUESTION SECTION:
+;themames.com.			IN	NS
+
+;; ANSWER SECTION:
+themames.com.		172800	IN	NS	ns-1700.awsdns-20.co.uk.
+themames.com.		172800	IN	NS	ns-315.awsdns-39.com.
+themames.com.		172800	IN	NS	ns-688.awsdns-22.net.
+themames.com.		172800	IN	NS	ns-1252.awsdns-28.org.
+
+;; ADDITIONAL SECTION:
+ns-1252.awsdns-28.org.	170047	IN	A	205.251.196.228
+ns-1700.awsdns-20.co.uk. 170039	IN	A	205.251.198.164
+ns-315.awsdns-39.com.	170042	IN	A	205.251.193.59
+ns-688.awsdns-22.net.	170045	IN	A	205.251.194.176
+
+;; Query time: 43 msec
+;; SERVER: 2600:4041:5da6:f400::1#53(2600:4041:5da6:f400::1)
+;; WHEN: Thu Nov 09 11:30:34 EST 2023
+;; MSG SIZE  rcvd: 242
+
+zacharykerner@Zacharys-MBP AWSCDK % nslookup themames.com
+Server:		2600:4041:5da6:f400::1
+Address:	2600:4041:5da6:f400::1#53
+
+Non-authoritative answer:
+Name:	themames.com
+Address: 52.207.120.158
